@@ -55,23 +55,40 @@ Route::get('/setup-tenant-roles/{slug}/{userId}', function (string $slug, int $u
     \Illuminate\Support\Facades\DB::purge('tenant');
     \Illuminate\Support\Facades\DB::setDefaultConnection('tenant');
 
-    // Run tenant migrations to ensure all tables (including Spatie) exist
-    \Illuminate\Support\Facades\Artisan::call('migrate', [
-        '--path'  => 'database/migrations/tenant',
-        '--force' => true,
-    ]);
-    $migrateOutput = \Illuminate\Support\Facades\Artisan::output();
-
-    // Create Spatie roles
-    app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
-    foreach (['club_admin', 'coach', 'archer'] as $role) {
-        \Spatie\Permission\Models\Role::firstOrCreate(['name' => $role, 'guard_name' => 'web']);
+    // Run tenant migrations (wrapped so partial-run tables don't abort everything)
+    $migrateOutput = 'skipped';
+    try {
+        \Illuminate\Support\Facades\Artisan::call('migrate', [
+            '--path'  => 'database/migrations/tenant',
+            '--force' => true,
+        ]);
+        $migrateOutput = \Illuminate\Support\Facades\Artisan::output();
+    } catch (\Throwable $e) {
+        $migrateOutput = 'migrate error (tables may already exist): ' . $e->getMessage();
     }
 
-    // Assign club_admin role to the specified user
-    $user = \App\Models\User::on('mysql')->findOrFail($userId);
-    $user->setConnection('tenant');
-    $user->assignRole('club_admin');
+    // Create Spatie roles directly via DB to avoid model connection issues
+    app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
+    foreach (['club_admin', 'coach', 'archer'] as $roleName) {
+        \Illuminate\Support\Facades\DB::connection('tenant')
+            ->table('roles')
+            ->insertOrIgnore(['name' => $roleName, 'guard_name' => 'web', 'created_at' => now(), 'updated_at' => now()]);
+    }
+
+    // Get the role id for club_admin
+    $roleId = \Illuminate\Support\Facades\DB::connection('tenant')
+        ->table('roles')
+        ->where('name', 'club_admin')
+        ->value('id');
+
+    // Assign via model_has_roles table directly
+    \Illuminate\Support\Facades\DB::connection('tenant')
+        ->table('model_has_roles')
+        ->insertOrIgnore([
+            'role_id'    => $roleId,
+            'model_type' => \App\Models\User::class,
+            'model_id'   => $userId,
+        ]);
 
     \Illuminate\Support\Facades\DB::setDefaultConnection('mysql');
 
@@ -79,8 +96,9 @@ Route::get('/setup-tenant-roles/{slug}/{userId}', function (string $slug, int $u
         'tenant'     => $tenant->slug,
         'db'         => $tenant->db_name,
         'user_id'    => $userId,
-        'role'       => 'club_admin',
-        'migrations' => trim($migrateOutput) ?: 'Nothing to migrate.',
+        'role_id'    => $roleId,
+        'role'       => 'club_admin assigned',
+        'migrations' => is_string($migrateOutput) ? (trim($migrateOutput) ?: 'Nothing to migrate.') : $migrateOutput,
     ]);
 });
 
