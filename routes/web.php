@@ -63,6 +63,32 @@ Route::get('/setup-wildcard', function () {
     return 'Done! Proxy directory created with build symlink.';
 });
 
+// TEMPORARY — run once to migrate DB and create super admin, then remove
+Route::get('/setup-app', function () {
+    // Run all pending migrations
+    \Illuminate\Support\Facades\Artisan::call('migrate', ['--force' => true]);
+    $migrateOutput = \Illuminate\Support\Facades\Artisan::output();
+
+    // Create super admin if none exists
+    $created = false;
+    if (!\App\Models\User::where('is_super_admin', true)->exists()) {
+        \App\Models\User::create([
+            'name'          => 'Super Admin',
+            'email'         => 'admin@fmsport.biz',
+            'password'      => \Illuminate\Support\Facades\Hash::make('Admin@1234'),
+            'is_super_admin'=> true,
+        ]);
+        $created = true;
+    }
+
+    return response()->json([
+        'migrations' => trim($migrateOutput) ?: 'Nothing to migrate.',
+        'super_admin_created' => $created,
+        'login_email'    => 'admin@fmsport.biz',
+        'login_password' => $created ? 'Admin@1234' : '(already existed)',
+    ]);
+});
+
 // ── Authentication ────────────────────────────────────────────────────────────
 
 Route::middleware('guest')->group(function () {
