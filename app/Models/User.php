@@ -12,6 +12,8 @@ class User extends Authenticatable
 {
     use HasFactory, Notifiable, Billable, HasRoles;
 
+    protected $connection = 'mysql';
+
     protected $fillable = [
         'name',
         'email',

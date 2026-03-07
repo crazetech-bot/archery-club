@@ -44,6 +44,9 @@ class InitializeTenancyBySubdomain
 
         DB::purge('tenant');
 
+        // Switch default connection so all tenant models use the tenant DB
+        DB::setDefaultConnection('tenant');
+
         // Make tenant available anywhere via app('tenant')
         app()->instance('tenant', $tenant);
 
