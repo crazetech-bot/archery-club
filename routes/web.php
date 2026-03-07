@@ -19,6 +19,21 @@ use Inertia\Inertia;
 
 Route::get('/', fn () => Inertia::render('Welcome'))->name('home');
 
+// TEMPORARY — remove after symlink is created
+Route::get('/setup-wildcard', function () {
+    $target = '/home/fmsport/archery/public';
+    $link   = '/home/fmsport/public_html/_wildcard_.fmsport.biz';
+    if (is_link($link)) {
+        return 'Already a symlink: ' . readlink($link);
+    }
+    if (is_dir($link)) {
+        $files = array_diff(scandir($link), ['.', '..']);
+        if (!empty($files)) return 'Dir not empty: ' . implode(', ', $files);
+        rmdir($link);
+    }
+    return symlink($target, $link) ? "Done! $link -> $target" : 'Failed: ' . error_get_last()['message'];
+});
+
 // ── Authentication ────────────────────────────────────────────────────────────
 
 Route::middleware('guest')->group(function () {
