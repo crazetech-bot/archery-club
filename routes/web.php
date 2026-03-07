@@ -69,23 +69,27 @@ Route::get('/setup-app', function () {
     \Illuminate\Support\Facades\Artisan::call('migrate', ['--force' => true]);
     $migrateOutput = \Illuminate\Support\Facades\Artisan::output();
 
-    // Create super admin if none exists
-    $created = false;
-    if (!\App\Models\User::where('is_super_admin', true)->exists()) {
+    // Create or reset super admin
+    $newPassword = 'Admin@1234';
+    $user = \App\Models\User::where('is_super_admin', true)->first();
+    if ($user) {
+        $user->update(['password' => \Illuminate\Support\Facades\Hash::make($newPassword)]);
+        $action = 'password_reset';
+    } else {
         \App\Models\User::create([
             'name'          => 'Super Admin',
             'email'         => 'admin@fmsport.biz',
-            'password'      => \Illuminate\Support\Facades\Hash::make('Admin@1234'),
+            'password'      => \Illuminate\Support\Facades\Hash::make($newPassword),
             'is_super_admin'=> true,
         ]);
-        $created = true;
+        $action = 'created';
     }
 
     return response()->json([
-        'migrations' => trim($migrateOutput) ?: 'Nothing to migrate.',
-        'super_admin_created' => $created,
-        'login_email'    => 'admin@fmsport.biz',
-        'login_password' => $created ? 'Admin@1234' : '(already existed)',
+        'migrations'     => trim($migrateOutput) ?: 'Nothing to migrate.',
+        'action'         => $action,
+        'login_email'    => $user ? $user->email : 'admin@fmsport.biz',
+        'login_password' => $newPassword,
     ]);
 });
 
