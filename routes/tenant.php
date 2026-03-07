@@ -10,6 +10,7 @@
  * Role middleware applied per-group via Spatie: ->middleware('role:club_admin')
  */
 
+use App\Http\Controllers\Admin\ArcherController as AdminArcherController;
 use App\Http\Controllers\Admin\AttendanceController;
 use App\Http\Controllers\Admin\CompetitionController as AdminCompetitionController;
 use App\Http\Controllers\Admin\LaneBookingController;
@@ -146,6 +147,15 @@ Route::middleware(['tenant', 'auth', 'subscribed'])->group(function () {
             Route::delete('/sessions/{session}',                 [AttendanceController::class, 'destroy'])->name('sessions.destroy');
             Route::get('/sessions/{session}/attendance',         [AttendanceController::class, 'show'])->name('sessions.attendance.show');
             Route::post('/sessions/{session}/attendance',        [AttendanceController::class, 'mark'])->name('sessions.attendance.mark');
+
+            // Archers (admin CRUD)
+            Route::get('/archers',                   [AdminArcherController::class, 'index'])->name('archers.index');
+            Route::get('/archers/create',            [AdminArcherController::class, 'create'])->name('archers.create');
+            Route::post('/archers',                  [AdminArcherController::class, 'store'])->name('archers.store');
+            Route::get('/archers/{archer}',          [AdminArcherController::class, 'show'])->name('archers.show');
+            Route::get('/archers/{archer}/edit',     [AdminArcherController::class, 'edit'])->name('archers.edit');
+            Route::put('/archers/{archer}',          [AdminArcherController::class, 'update'])->name('archers.update');
+            Route::delete('/archers/{archer}',       [AdminArcherController::class, 'destroy'])->name('archers.destroy');
 
             // Competitions
             Route::get('/competitions',                          [AdminCompetitionController::class, 'index'])->name('competitions.index');

@@ -17,14 +17,20 @@ class Archer extends Model
     protected $fillable = [
         'user_id',
         'coach_id',
+        'name',
+        'gender',
+        'bow_type',
+        'experience_level',
         'category',
         'date_of_birth',
         'dominant_hand',
         'phone',
+        'is_active',
     ];
 
     protected $casts = [
         'date_of_birth' => 'date',
+        'is_active'     => 'boolean',
     ];
 
     // -------------------------------------------------------------------------
