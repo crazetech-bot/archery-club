@@ -107,6 +107,13 @@ Route::middleware('guest')->group(function () {
 
 Route::middleware('auth')->group(function () {
     Route::post('/logout', [AuthenticatedSessionController::class, 'destroy'])->name('logout');
+
+    // Redirect authenticated users to the right dashboard
+    Route::get('/dashboard', function () {
+        return auth()->user()->is_super_admin
+            ? redirect()->route('admin.dashboard')
+            : redirect('/');
+    })->name('dashboard');
 });
 
 // ── Super Admin — Tenant Management ──────────────────────────────────────────
