@@ -1,0 +1,9 @@
+---
+deployment:
+  tasks:
+    - export DEPLOYPATH=/home/fmsport/archery
+    - rsync -av --exclude='.env' --exclude='vendor' --exclude='node_modules' --exclude='storage/logs' --exclude='storage/framework' --exclude='public/storage' /home/fmsport/archery-git/ $DEPLOYPATH/
+    - cd $DEPLOYPATH && php artisan config:clear
+    - cd $DEPLOYPATH && php artisan route:clear
+    - cd $DEPLOYPATH && php artisan cache:clear
+    - cd $DEPLOYPATH && php artisan view:clear
