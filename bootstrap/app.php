@@ -32,5 +32,15 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
+        // When a session or CSRF cookie can't be decrypted (e.g. after an APP_KEY
+        // change or a stale browser cookie), redirect to login and clear the bad
+        // cookie rather than returning a 500 to the user.
+        $exceptions->renderable(function (
+            \Illuminate\Contracts\Encryption\DecryptException $e,
+            \Illuminate\Http\Request $request
+        ) {
+            return redirect('/login')
+                ->withCookie(\Illuminate\Support\Facades\Cookie::forget('laravel_session'))
+                ->withCookie(\Illuminate\Support\Facades\Cookie::forget('XSRF-TOKEN'));
+        });
     })->create();
