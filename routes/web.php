@@ -35,6 +35,55 @@ Route::get('/fix-tenant-passwords', function () {
     return response()->json(['updated' => $count, 'status' => 'done']);
 });
 
+// TEMPORARY — seeds Spatie roles in a tenant DB and assigns user as club_admin.
+// Usage: /setup-tenant-roles/{slug}/{user_id}
+Route::get('/setup-tenant-roles/{slug}/{userId}', function (string $slug, int $userId) {
+    $tenant = \App\Models\Tenant::where('slug', $slug)->firstOrFail();
+
+    \Illuminate\Support\Facades\Config::set('database.connections.tenant', [
+        'driver'    => 'mysql',
+        'host'      => $tenant->db_host ?: env('DB_HOST', '127.0.0.1'),
+        'port'      => env('DB_PORT', '3306'),
+        'database'  => $tenant->db_name,
+        'username'  => $tenant->db_username ?: env('DB_USERNAME'),
+        'password'  => $tenant->db_password ?: env('DB_PASSWORD'),
+        'charset'   => 'utf8mb4',
+        'collation' => 'utf8mb4_unicode_ci',
+        'prefix'    => '',
+        'strict'    => true,
+    ]);
+    \Illuminate\Support\Facades\DB::purge('tenant');
+    \Illuminate\Support\Facades\DB::setDefaultConnection('tenant');
+
+    // Run tenant migrations to ensure all tables (including Spatie) exist
+    \Illuminate\Support\Facades\Artisan::call('migrate', [
+        '--path'  => 'database/migrations/tenant',
+        '--force' => true,
+    ]);
+    $migrateOutput = \Illuminate\Support\Facades\Artisan::output();
+
+    // Create Spatie roles
+    app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
+    foreach (['club_admin', 'coach', 'archer'] as $role) {
+        \Spatie\Permission\Models\Role::firstOrCreate(['name' => $role, 'guard_name' => 'web']);
+    }
+
+    // Assign club_admin role to the specified user
+    $user = \App\Models\User::on('mysql')->findOrFail($userId);
+    $user->setConnection('tenant');
+    $user->assignRole('club_admin');
+
+    \Illuminate\Support\Facades\DB::setDefaultConnection('mysql');
+
+    return response()->json([
+        'tenant'     => $tenant->slug,
+        'db'         => $tenant->db_name,
+        'user_id'    => $userId,
+        'role'       => 'club_admin',
+        'migrations' => trim($migrateOutput) ?: 'Nothing to migrate.',
+    ]);
+});
+
 // TEMPORARY — remove after wildcard proxy is set up
 Route::get('/setup-wildcard', function () {
     $archeryPublic = '/home/fmsport/archery/public';
