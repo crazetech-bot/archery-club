@@ -19,6 +19,15 @@ use Inertia\Inertia;
 
 Route::get('/', fn () => Inertia::render('Welcome'))->name('home');
 
+// TEMPORARY — OPcache flush (remove after confirming app is working)
+Route::get('/flush-opcache', function () {
+    if (function_exists('opcache_reset')) {
+        opcache_reset();
+        return response()->json(['status' => 'OPcache cleared']);
+    }
+    return response()->json(['status' => 'OPcache not available']);
+});
+
 // TEMPORARY — remove after wildcard proxy is set up
 Route::get('/setup-wildcard', function () {
     $archeryPublic = '/home/fmsport/archery/public';
