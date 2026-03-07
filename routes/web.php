@@ -31,7 +31,7 @@ Route::get('/flush-opcache', function () {
 // TEMPORARY — clears encrypted db_password from all tenants so middleware
 // falls back to env('DB_PASSWORD'). Run once then remove.
 Route::get('/fix-tenant-passwords', function () {
-    $count = \App\Models\Tenant::query()->update(['db_password' => null]);
+    $count = \App\Models\Tenant::query()->update(['db_password' => '']);
     return response()->json(['updated' => $count, 'status' => 'done']);
 });
 
