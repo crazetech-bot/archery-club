@@ -19,20 +19,6 @@ use Inertia\Inertia;
 
 Route::get('/', fn () => Inertia::render('Welcome'))->name('home');
 
-// TEMPORARY DEBUG — remove after investigating CSS issue
-Route::get('/debug-server', function () {
-    return response()->json([
-        'document_root'  => $_SERVER['DOCUMENT_ROOT'] ?? 'n/a',
-        'script_filename'=> $_SERVER['SCRIPT_FILENAME'] ?? 'n/a',
-        'public_path'    => public_path(),
-        'base_path'      => base_path(),
-        'build_exists'   => file_exists(public_path('build/manifest.json')),
-        'build_path'     => public_path('build/manifest.json'),
-        'css_exists'     => count(glob(public_path('build/assets/app-*.css')) ?: []) > 0,
-        'css_files'      => glob(public_path('build/assets/app-*.css')) ?: [],
-    ]);
-});
-
 // TEMPORARY — remove after wildcard proxy is set up
 Route::get('/setup-wildcard', function () {
     $archeryPublic = '/home/fmsport/archery/public';
