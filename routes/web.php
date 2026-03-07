@@ -23,15 +23,25 @@ Route::get('/', fn () => Inertia::render('Welcome'))->name('home');
 Route::get('/setup-wildcard', function () {
     $target = '/home/fmsport/archery/public';
     $link   = '/home/fmsport/public_html/_wildcard_.fmsport.biz';
+
     if (is_link($link)) {
-        return 'Already a symlink: ' . readlink($link);
+        return 'Already a symlink pointing to: ' . readlink($link);
     }
+
     if (is_dir($link)) {
-        $files = array_diff(scandir($link), ['.', '..']);
-        if (!empty($files)) return 'Dir not empty: ' . implode(', ', $files);
+        $it = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator($link, FilesystemIterator::SKIP_DOTS),
+            RecursiveIteratorIterator::CHILD_FIRST
+        );
+        foreach ($it as $file) {
+            $file->isDir() ? rmdir($file->getRealPath()) : unlink($file->getRealPath());
+        }
         rmdir($link);
     }
-    return symlink($target, $link) ? "Done! $link -> $target" : 'Failed: ' . error_get_last()['message'];
+
+    return symlink($target, $link)
+        ? "Done! Symlink created: $link -> $target"
+        : 'Failed: ' . (error_get_last()['message'] ?? 'unknown error');
 });
 
 // ── Authentication ────────────────────────────────────────────────────────────
