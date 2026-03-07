@@ -2,45 +2,40 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\Tenant;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
-use Stancl\Tenancy\Database\Models\Tenant;
 use Symfony\Component\HttpFoundation\Response;
 
 class InitializeTenancyBySubdomain
 {
     public function handle(Request $request, Closure $next): Response
     {
-        $host         = $request->getHost();
+        $host          = $request->getHost();
         $centralDomain = env('TENANT_DOMAIN', 'fmsport.biz');
 
         $subdomain = str_replace('.' . $centralDomain, '', $host);
 
         /** @var Tenant|null $tenant */
-        $tenant = Tenant::find($subdomain);
+        $tenant = Tenant::where('slug', $subdomain)->first();
 
         if (! $tenant) {
             abort(404, 'Club not found.');
         }
 
-        if (($tenant->status ?? 'active') === 'suspended') {
+        if ($tenant->status === 'suspended') {
             abort(403, 'This club account has been suspended. Please contact support.');
         }
 
-        // Build the tenant database name using Stancl's convention: prefix + id + suffix
-        $dbName = config('tenancy.database.prefix', 'tenant')
-                . $tenant->id
-                . config('tenancy.database.suffix', '');
-
         Config::set('database.connections.tenant', [
             'driver'    => 'mysql',
-            'host'      => env('DB_HOST', '127.0.0.1'),
+            'host'      => $tenant->db_host ?: env('DB_HOST', '127.0.0.1'),
             'port'      => env('DB_PORT', '3306'),
-            'database'  => $dbName,
-            'username'  => env('DB_USERNAME'),
-            'password'  => env('DB_PASSWORD'),
+            'database'  => $tenant->db_name,
+            'username'  => $tenant->db_username ?: env('DB_USERNAME'),
+            'password'  => $tenant->db_password ?: env('DB_PASSWORD'),
             'charset'   => 'utf8mb4',
             'collation' => 'utf8mb4_unicode_ci',
             'prefix'    => '',

@@ -86,7 +86,7 @@ Route::prefix('admin')
     ->middleware(['auth', 'super_admin'])
     ->name('admin.')
     ->group(function () {
-        Route::get('/', fn () => Inertia::render('Admin/Dashboard'))->name('dashboard');
+        Route::get('/', fn () => Inertia::render('SuperAdmin/Dashboard'))->name('dashboard');
 
         // Tenant CRUD
         Route::resource('tenants', TenantController::class);
