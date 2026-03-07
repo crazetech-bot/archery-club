@@ -19,29 +19,48 @@ use Inertia\Inertia;
 
 Route::get('/', fn () => Inertia::render('Welcome'))->name('home');
 
-// TEMPORARY — remove after symlink is created
+// TEMPORARY — remove after wildcard proxy is set up
 Route::get('/setup-wildcard', function () {
-    $target = '/home/fmsport/archery/public';
-    $link   = '/home/fmsport/public_html/_wildcard_.fmsport.biz';
+    $archeryPublic = '/home/fmsport/archery/public';
+    $wildcardDir   = '/home/fmsport/public_html/_wildcard_.fmsport.biz';
 
-    if (is_link($link)) {
-        return 'Already a symlink pointing to: ' . readlink($link);
+    // Remove existing symlink
+    if (is_link($wildcardDir)) {
+        unlink($wildcardDir);
     }
 
-    if (is_dir($link)) {
-        $it = new RecursiveIteratorIterator(
-            new RecursiveDirectoryIterator($link, FilesystemIterator::SKIP_DOTS),
-            RecursiveIteratorIterator::CHILD_FIRST
-        );
-        foreach ($it as $file) {
-            $file->isDir() ? rmdir($file->getRealPath()) : unlink($file->getRealPath());
-        }
-        rmdir($link);
+    // Recreate as real directory
+    if (!is_dir($wildcardDir)) {
+        mkdir($wildcardDir, 0755, true);
     }
 
-    return symlink($target, $link)
-        ? "Done! Symlink created: $link -> $target"
-        : 'Failed: ' . (error_get_last()['message'] ?? 'unknown error');
+    // Proxy index.php — bootstraps the real Laravel app
+    file_put_contents($wildcardDir . '/index.php',
+        '<?php' . "\n" .
+        "define('LARAVEL_START', microtime(true));\n" .
+        "chdir('$archeryPublic');\n" .
+        "require '$archeryPublic/index.php';\n"
+    );
+
+    // .htaccess — route all non-file requests to index.php
+    file_put_contents($wildcardDir . '/.htaccess',
+        "Options -Indexes\n\n" .
+        "<IfModule mod_rewrite.c>\n" .
+        "    RewriteEngine On\n" .
+        "    RewriteCond %{REQUEST_FILENAME} -f [OR]\n" .
+        "    RewriteCond %{REQUEST_FILENAME} -d\n" .
+        "    RewriteRule ^ - [L]\n" .
+        "    RewriteRule ^ index.php [L]\n" .
+        "</IfModule>\n"
+    );
+
+    // Symlink build assets so CSS/JS are served directly
+    $buildLink = $wildcardDir . '/build';
+    if (!file_exists($buildLink) && !is_link($buildLink)) {
+        symlink($archeryPublic . '/build', $buildLink);
+    }
+
+    return 'Done! Proxy directory created with build symlink.';
 });
 
 // ── Authentication ────────────────────────────────────────────────────────────
