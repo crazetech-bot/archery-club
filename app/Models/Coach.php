@@ -47,4 +47,12 @@ class Coach extends Model
         return $this->hasMany(TrainingSession::class);
     }
 
+    /**
+     * Coach notes written by this coach.
+     */
+    public function coachNotes(): HasMany
+    {
+        return $this->hasMany(CoachNote::class)->latest();
+    }
+
 }

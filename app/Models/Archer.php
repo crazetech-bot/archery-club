@@ -89,6 +89,14 @@ class Archer extends Model
         return $this->hasMany(LaneBooking::class);
     }
 
+    /**
+     * Coach notes written about this archer.
+     */
+    public function coachNotes(): HasMany
+    {
+        return $this->hasMany(CoachNote::class)->latest();
+    }
+
     // -------------------------------------------------------------------------
     // Helpers
     // -------------------------------------------------------------------------

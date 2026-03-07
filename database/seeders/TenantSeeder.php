@@ -90,7 +90,6 @@ class TenantSeeder extends Seeder
         $coach = Coach::firstOrCreate(
             ['user_id' => $coachUser->id],
             [
-                'name'  => 'Sarah Coach',
                 'level' => 'Level 2',
                 'notes' => 'Specialises in recurve technique and form.',
             ]

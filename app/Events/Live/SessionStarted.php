@@ -48,26 +48,28 @@ class SessionStarted implements ShouldBroadcast
      */
     public function broadcastWith(): array
     {
-        $this->liveSession->loadMissing([
-            'trainingSession.archer',
-            'trainingSession',
-        ]);
+        $this->liveSession->loadMissing(['trainingSession.archer.user', 'trainingSession']);
+
+        $trainingSession = $this->liveSession->trainingSession;
+        $archer          = $trainingSession?->archer;
 
         return [
             'session' => [
-                'id'                  => $this->liveSession->id,
-                'status'              => $this->liveSession->status,
-                'started_at'          => $this->liveSession->started_at,
-                'training_session_id' => $this->liveSession->training_session_id,
-                'archer' => [
-                    'id'   => $this->liveSession->trainingSession->archer->id,
-                    'name' => $this->liveSession->trainingSession->archer->name,
+                'id'              => $this->liveSession->id,
+                'status'          => 'active',
+                'archer'          => [
+                    'id'       => $archer?->id,
+                    'name'     => $archer?->user?->name ?? "Archer #{$archer?->id}",
+                    'category' => $archer?->category,
                 ],
-                'training_session' => [
-                    'round_type' => $this->liveSession->trainingSession->round_type,
-                    'distance'   => $this->liveSession->trainingSession->distance,
-                ],
-                'ends' => [],
+                'round_type'      => $trainingSession?->round_type,
+                'distance_metres' => $trainingSession?->distance_metres,
+                'arrows_per_end'  => $this->liveSession->arrows_per_end,
+                'total_score'     => 0,
+                'x_count'         => 0,
+                'average_per_end' => 0,
+                'started_at'      => $this->liveSession->started_at,
+                'ends'            => [],
             ],
         ];
     }

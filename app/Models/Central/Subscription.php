@@ -9,32 +9,27 @@ class Subscription extends Model
 {
     /**
      * The database connection to use (central DB).
+     * Maps to the Cashier-managed `subscriptions` table.
      */
     protected $connection = 'mysql';
 
-    /**
-     * The table associated with the model.
-     */
     protected $table = 'subscriptions';
 
-    /**
-     * The attributes that are mass assignable.
-     */
     protected $fillable = [
-        'tenant_id',
-        'provider',
-        'provider_customer_id',
-        'provider_subscription_id',
-        'plan',
-        'status',
-        'renews_at',
+        'user_id',
+        'type',
+        'stripe_id',
+        'stripe_status',
+        'stripe_price',
+        'quantity',
+        'trial_ends_at',
+        'ends_at',
     ];
 
-    /**
-     * The attributes that should be cast.
-     */
     protected $casts = [
-        'renews_at' => 'datetime',
+        'trial_ends_at' => 'datetime',
+        'ends_at'        => 'datetime',
+        'quantity'       => 'integer',
     ];
 
     // -------------------------------------------------------------------------
@@ -42,11 +37,11 @@ class Subscription extends Model
     // -------------------------------------------------------------------------
 
     /**
-     * The tenant this subscription belongs to.
+     * The user (tenant admin) this subscription belongs to.
      */
-    public function tenant(): BelongsTo
+    public function user(): BelongsTo
     {
-        return $this->belongsTo(Tenant::class, 'tenant_id');
+        return $this->belongsTo(User::class);
     }
 
     // -------------------------------------------------------------------------
@@ -58,7 +53,7 @@ class Subscription extends Model
      */
     public function isActive(): bool
     {
-        return $this->status === 'active';
+        return $this->stripe_status === 'active';
     }
 
     /**
@@ -66,6 +61,14 @@ class Subscription extends Model
      */
     public function isTrialing(): bool
     {
-        return $this->status === 'trialing';
+        return $this->stripe_status === 'trialing';
+    }
+
+    /**
+     * Check if the subscription has ended.
+     */
+    public function hasEnded(): bool
+    {
+        return $this->ends_at !== null && $this->ends_at->isPast();
     }
 }

@@ -22,45 +22,48 @@ class DashboardController extends Controller
     public function archer(Request $request): Response
     {
         $user   = Auth::user();
-        $archer = Archer::where('user_id', $user->id)->firstOrFail();
+        $archer = Archer::with(['currentEquipment', 'coach'])->where('user_id', $user->id)->firstOrFail();
 
-        // Recent sessions (last 10)
-        $recentSessions = TrainingSession::with('liveSession')
+        // ── Recent sessions (last 8) ──────────────────────────────────────────
+        $recentSessions = TrainingSession::with(['liveSession.ends'])
             ->where('archer_id', $archer->id)
             ->whereNotNull('ended_at')
             ->orderByDesc('started_at')
-            ->limit(10)
+            ->limit(8)
             ->get()
             ->map(fn ($s) => [
-                'id'           => $s->id,
-                'round_type'   => $s->round_type,
+                'id'              => $s->id,
+                'round_type'      => $s->round_type,
                 'distance_metres' => $s->distance_metres,
-                'started_at'   => $s->started_at,
-                'ended_at'     => $s->ended_at,
-                'total_score'  => $s->liveSession?->total_score,
-                'max_score'    => $s->max_score,
-                'x_count'      => $s->liveSession?->x_count ?? 0,
-                'ends_count'   => $s->liveSession?->ends()->count() ?? 0,
+                'started_at'      => $s->started_at,
+                'ended_at'        => $s->ended_at,
+                'total_score'     => $s->liveSession?->total_score ?? 0,
+                'max_score'       => $s->max_score,
+                'x_count'         => $s->liveSession?->x_count ?? 0,
+                'ten_count'       => $s->liveSession?->ten_count ?? 0,
+                'ends_count'      => $s->liveSession?->ends->count() ?? 0,
             ]);
 
-        // Stats
-        $allScores = TrainingSession::with('liveSession')
+        // ── Aggregate stats ───────────────────────────────────────────────────
+        $sessions = TrainingSession::with('liveSession')
             ->where('archer_id', $archer->id)
             ->whereNotNull('ended_at')
-            ->get()
-            ->pluck('liveSession.total_score')
-            ->filter();
+            ->get();
+
+        $scores  = $sessions->pluck('liveSession.total_score')->filter();
+        $xCounts = $sessions->pluck('liveSession.x_count')->filter();
 
         $stats = [
-            'total_sessions'     => $allScores->count(),
-            'avg_score'          => $allScores->count() ? round($allScores->avg(), 1) : null,
-            'best_score'         => $allScores->max(),
-            'sessions_this_week' => TrainingSession::where('archer_id', $archer->id)
-                ->where('started_at', '>=', now()->startOfWeek())
-                ->count(),
+            'total_sessions'     => $sessions->count(),
+            'avg_score'          => $scores->count() ? round($scores->avg(), 1) : null,
+            'best_score'         => $scores->max(),
+            'total_x_count'      => $xCounts->sum(),
+            'sessions_this_week' => $sessions->filter(
+                fn ($s) => $s->started_at >= now()->startOfWeek()
+            )->count(),
         ];
 
-        // Upcoming bookings (next 3)
+        // ── Upcoming bookings (next 3) ────────────────────────────────────────
         $upcomingBookings = LaneBooking::with('lane')
             ->where('archer_id', $archer->id)
             ->where('start_time', '>', now())
@@ -68,35 +71,39 @@ class DashboardController extends Controller
             ->limit(3)
             ->get()
             ->map(fn ($b) => [
-                'id'          => $b->id,
-                'lane_name'   => $b->lane?->name,
-                'lane_number' => $b->lane?->number,
-                'start_time'  => $b->start_time,
-                'end_time'    => $b->end_time,
+                'id'      => $b->id,
+                'lane'    => ['name' => $b->lane?->name, 'number' => $b->lane?->number],
+                'start_time' => $b->start_time,
+                'end_time'   => $b->end_time,
+                'purpose'    => $b->purpose,
             ]);
 
-        // Current equipment
-        $currentEquipment = $archer->currentEquipment;
+        // ── Current equipment ─────────────────────────────────────────────────
+        $eq = $archer->currentEquipment;
 
         return Inertia::render('Dashboard/ArcherDashboard', [
             'archer'           => [
-                'id'       => $archer->id,
-                'name'     => $user->name,
-                'category' => $archer->category,
-                'age'      => $archer->age,
+                'id'           => $archer->id,
+                'name'         => $user->name,
+                'category'     => $archer->category,
+                'age'          => $archer->age,
+                'dominant_hand'=> $archer->dominant_hand,
+                'coach_name'   => $archer->coach?->user?->name,
             ],
             'stats'            => $stats,
             'recentSessions'   => $recentSessions,
             'upcomingBookings' => $upcomingBookings,
-            'currentEquipment' => $currentEquipment ? [
-                'id'              => $currentEquipment->id,
-                'name'            => $currentEquipment->name,
-                'bow_type'        => $currentEquipment->bow_type,
-                'bow_brand'       => $currentEquipment->bow_brand,
-                'bow_model'       => $currentEquipment->bow_model,
-                'draw_weight_lbs' => $currentEquipment->draw_weight_lbs,
-                'arrow_brand'     => $currentEquipment->arrow_brand,
-                'arrow_model'     => $currentEquipment->arrow_model,
+            'currentEquipment' => $eq ? [
+                'id'                 => $eq->id,
+                'name'               => $eq->name,
+                'bow_type'           => $eq->bow_type,
+                'bow_brand'          => $eq->bow_brand,
+                'bow_model'          => $eq->bow_model,
+                'draw_weight_lbs'    => $eq->draw_weight_lbs,
+                'draw_length_inches' => $eq->draw_length_inches,
+                'arrow_brand'        => $eq->arrow_brand,
+                'arrow_model'        => $eq->arrow_model,
+                'arrow_spine'        => $eq->arrow_spine,
             ] : null,
         ]);
     }
@@ -174,45 +181,45 @@ class DashboardController extends Controller
      */
     public function admin(Request $request): Response
     {
-        $user = Auth::user();
+        $tenant = tenant();
 
+        // ── Club stats ─────────────────────────────────────────────────────────
         $totalArchers  = Archer::count();
         $totalCoaches  = Coach::count();
         $activeSessions = LiveSession::where('status', 'active')->count();
-        $sessionsToday  = TrainingSession::whereDate('started_at', today())->count();
 
-        // Previous week comparisons
-        $archersLastWeek  = Archer::where('created_at', '<', now()->startOfWeek())->count();
-        $sessionsLastWeek = TrainingSession::whereBetween('started_at', [
-            now()->subWeeks(2)->startOfWeek(),
-            now()->subWeek()->endOfWeek(),
-        ])->count();
-        $sessionsThisWeek = TrainingSession::where('started_at', '>=', now()->startOfWeek())->count();
+        $newThisMonth = Archer::whereMonth('created_at', now()->month)->whereYear('created_at', now()->year)->count()
+                      + Coach::whereMonth('created_at', now()->month)->whereYear('created_at', now()->year)->count();
+        $newLastMonth = Archer::whereMonth('created_at', now()->subMonthNoOverflow()->month)->whereYear('created_at', now()->subMonthNoOverflow()->year)->count()
+                      + Coach::whereMonth('created_at', now()->subMonthNoOverflow()->month)->whereYear('created_at', now()->subMonthNoOverflow()->year)->count();
 
-        $stats = [
-            'total_archers'     => $totalArchers,
-            'archers_delta'     => $totalArchers - $archersLastWeek,
-            'total_coaches'     => $totalCoaches,
-            'active_sessions'   => $activeSessions,
-            'sessions_this_week' => $sessionsThisWeek,
-            'sessions_delta'    => $sessionsThisWeek - $sessionsLastWeek,
+        $clubStats = [
+            'total_members'       => $totalArchers + $totalCoaches,
+            'members_delta'       => $newThisMonth - $newLastMonth,
+            'sessions_this_month' => TrainingSession::whereMonth('started_at', now()->month)
+                                        ->whereYear('started_at', now()->year)->count(),
+            'active_sessions'     => $activeSessions,
+            'bookings_today'      => LaneBooking::whereDate('start_time', today())->count(),
         ];
 
-        // Recent member activity (last 10 sessions)
-        $memberActivity = TrainingSession::with(['archer', 'liveSession'])
-            ->orderByDesc('started_at')
-            ->limit(10)
+        // ── Recent members (archers ordered by join date) ──────────────────────
+        $recentMembers = Archer::with('user')
+            ->orderByDesc('created_at')
+            ->limit(8)
             ->get()
-            ->map(fn ($s) => [
-                'id'          => $s->id,
-                'archer_name' => $s->archer?->user?->name ?? "Archer #{$s->archer_id}",
-                'role'        => 'archer',
-                'action'      => $s->ended_at ? 'Completed session' : 'Started session',
-                'score'       => $s->liveSession?->total_score,
-                'occurred_at' => $s->ended_at ?? $s->started_at,
-            ]);
+            ->map(function ($archer) {
+                return [
+                    'id'            => $archer->id,
+                    'name'          => $archer->user?->name ?? "Archer #{$archer->id}",
+                    'email'         => $archer->user?->email ?? '',
+                    'role'          => 'archer',
+                    'session_count' => TrainingSession::where('archer_id', $archer->id)->count(),
+                    'last_active'   => TrainingSession::where('archer_id', $archer->id)
+                                          ->orderByDesc('started_at')->value('started_at'),
+                ];
+            });
 
-        // Lane status grid
+        // ── Lane status grid ───────────────────────────────────────────────────
         $laneStatus = Lane::orderBy('number')
             ->get()
             ->map(function ($lane) {
@@ -223,39 +230,36 @@ class DashboardController extends Controller
                     ->first();
 
                 return [
-                    'id'              => $lane->id,
-                    'number'          => $lane->number,
-                    'name'            => $lane->name,
-                    'distance_metres' => $lane->distance_metres,
-                    'is_active'       => $lane->is_active,
-                    'is_occupied'     => (bool) $current,
-                    'current_archer'  => $current ? ($current->archer?->user?->name ?? 'Unknown') : null,
-                    'current_until'   => $current?->end_time,
-                    'todays_bookings' => LaneBooking::where('lane_id', $lane->id)
+                    'id'             => $lane->id,
+                    'name'           => $lane->name,
+                    'is_occupied'    => (bool) $current,
+                    'current_archer' => $current ? ($current->archer?->user?->name ?? 'Unknown') : null,
+                    'bookings_today' => LaneBooking::where('lane_id', $lane->id)
                         ->whereDate('start_time', today())
                         ->count(),
                 ];
             });
 
-        // Upcoming competitions (next 3)
+        // ── Upcoming competitions (next 3) ─────────────────────────────────────
         $upcomingCompetitions = Competition::where('date', '>=', today())
             ->orderBy('date')
             ->limit(3)
             ->get()
             ->map(fn ($c) => [
-                'id'          => $c->id,
-                'name'        => $c->name,
-                'date'        => $c->date,
-                'location'    => $c->location,
-                'registered'  => $c->results()->count(),
+                'id'       => $c->id,
+                'name'     => $c->name,
+                'date'     => $c->date,
+                'location' => $c->location,
+                'level'    => $c->level,
             ]);
 
         return Inertia::render('Dashboard/AdminDashboard', [
-            'stats'                => $stats,
-            'memberActivity'       => $memberActivity,
+            'tenant'               => ['name' => $tenant?->name ?? 'Club'],
+            'subscription'         => $this->tenantSubscription(),
+            'clubStats'            => $clubStats,
+            'recentMembers'        => $recentMembers,
             'laneStatus'           => $laneStatus,
             'upcomingCompetitions' => $upcomingCompetitions,
-            'subscription'         => $this->tenantSubscription(),
         ]);
     }
 
@@ -296,8 +300,9 @@ class DashboardController extends Controller
     {
         $tenant = tenant();
         return [
-            'plan'   => $tenant?->plan ?? 'free',
-            'status' => $tenant?->status ?? 'active',
+            'plan'      => $tenant?->plan ?? 'free',
+            'status'    => $tenant?->status ?? 'active',
+            'renews_at' => $tenant?->renews_at ?? null,
         ];
     }
 }

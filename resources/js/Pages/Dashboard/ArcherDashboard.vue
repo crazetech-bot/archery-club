@@ -7,11 +7,15 @@
         <div>
           <p class="text-xs font-semibold uppercase tracking-widest text-gray-400">Welcome back</p>
           <h1 class="mt-0.5 text-2xl font-bold text-gray-900">{{ archer.name }}</h1>
-          <p class="mt-0.5 text-sm text-gray-500">{{ archer.category }} · {{ archer.age ?? '—' }} yrs</p>
+          <p class="mt-0.5 text-sm text-gray-500">
+            {{ archer.category }}
+            <span v-if="archer.age"> · {{ archer.age }} yrs</span>
+            <span v-if="archer.coach_name" class="text-gray-400"> · Coach: {{ archer.coach_name }}</span>
+          </p>
         </div>
 
         <Link
-          href="/live"
+          href="/archer/sessions"
           class="inline-flex items-center gap-2 rounded-2xl bg-gray-900 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-gray-900/20 transition hover:bg-gray-700 active:scale-95"
         >
           <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -19,14 +23,14 @@
             <circle cx="12" cy="12" r="6"  stroke-width="2"/>
             <circle cx="12" cy="12" r="2"  fill="currentColor" stroke-width="0"/>
           </svg>
-          Start Live Scoring
+          Start Scoring
         </Link>
       </div>
 
       <!-- ── Stats row ───────────────────────────────────────────────────── -->
       <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <div
-          v-for="stat in stats"
+          v-for="stat in statCards"
           :key="stat.label"
           class="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-gray-100"
         >
@@ -41,9 +45,8 @@
       <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
 
         <!-- ── Recent sessions (2/3 width) ──────────────────────────────── -->
-        <div class="lg:col-span-2 space-y-4">
+        <div class="space-y-4 lg:col-span-2">
 
-          <!-- Section header -->
           <div class="flex items-center justify-between">
             <h2 class="text-sm font-semibold text-gray-900">Recent Sessions</h2>
             <Link href="/archer/sessions" class="text-xs font-medium text-gray-400 hover:text-gray-700">
@@ -51,7 +54,6 @@
             </Link>
           </div>
 
-          <!-- Sessions list -->
           <div v-if="recentSessions.length > 0" class="space-y-3">
             <Link
               v-for="session in recentSessions"
@@ -60,19 +62,22 @@
               class="group flex items-center gap-4 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-gray-100 transition hover:ring-gray-200"
             >
               <!-- Score circle -->
-              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gray-50 text-center">
-                <p class="text-lg font-bold tabular-nums text-gray-900 leading-none">
-                  {{ session.total_score }}
+              <div class="flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-xl bg-gray-50">
+                <p class="text-lg font-bold tabular-nums leading-none text-gray-900">
+                  {{ session.total_score || '—' }}
                 </p>
+                <p v-if="session.max_score" class="text-[10px] text-gray-400">/ {{ session.max_score }}</p>
               </div>
 
               <!-- Session info -->
               <div class="min-w-0 flex-1">
                 <p class="truncate text-sm font-semibold text-gray-900">
-                  {{ session.round_type ?? 'Training' }}
-                  <span v-if="session.distance" class="font-normal text-gray-400">· {{ session.distance }}m</span>
+                  {{ session.round_type ?? 'Practice' }}
+                  <span v-if="session.distance_metres" class="font-normal text-gray-400">
+                    · {{ session.distance_metres }}m
+                  </span>
                 </p>
-                <p class="mt-0.5 text-xs text-gray-400">{{ formatDate(session.date) }}</p>
+                <p class="mt-0.5 text-xs text-gray-400">{{ formatDate(session.started_at) }}</p>
               </div>
 
               <!-- Badges -->
@@ -84,11 +89,11 @@
                   {{ session.x_count }}X
                 </span>
                 <span class="text-xs text-gray-400">
-                  {{ session.ends_count }} ends
+                  {{ session.ends_count }} end{{ session.ends_count !== 1 ? 's' : '' }}
                 </span>
               </div>
 
-              <!-- Arrow -->
+              <!-- Chevron -->
               <svg class="h-4 w-4 shrink-0 text-gray-300 transition group-hover:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
               </svg>
@@ -101,10 +106,18 @@
             class="flex flex-col items-center justify-center rounded-2xl bg-white py-12 shadow-sm ring-1 ring-gray-100"
           >
             <svg class="mb-3 h-10 w-10 text-gray-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+              <circle cx="12" cy="12" r="10" stroke-width="1.5"/>
+              <circle cx="12" cy="12" r="6"  stroke-width="1.5"/>
+              <circle cx="12" cy="12" r="2"  stroke-width="1.5"/>
             </svg>
             <p class="text-sm font-medium text-gray-600">No sessions yet</p>
             <p class="mt-1 text-xs text-gray-400">Start your first live scoring session.</p>
+            <Link
+              href="/archer/sessions"
+              class="mt-4 rounded-xl bg-gray-900 px-4 py-2 text-xs font-semibold text-white hover:bg-gray-700"
+            >
+              Start now
+            </Link>
           </div>
         </div>
 
@@ -115,9 +128,6 @@
           <div>
             <div class="mb-3 flex items-center justify-between">
               <h2 class="text-sm font-semibold text-gray-900">Upcoming Bookings</h2>
-              <Link href="/lanes" class="text-xs font-medium text-gray-400 hover:text-gray-700">
-                Book lane →
-              </Link>
             </div>
 
             <div v-if="upcomingBookings.length > 0" class="space-y-2">
@@ -132,8 +142,11 @@
                     <p class="mt-0.5 text-xs text-gray-400">{{ formatDateTime(booking.start_time) }}</p>
                     <p class="text-xs text-gray-400">{{ formatDuration(booking.start_time, booking.end_time) }}</p>
                   </div>
-                  <span class="rounded-full bg-sky-100 px-2 py-0.5 text-xs font-medium text-sky-700">
-                    {{ booking.purpose ?? 'training' }}
+                  <span
+                    v-if="booking.purpose"
+                    class="rounded-full bg-sky-100 px-2 py-0.5 text-xs font-medium text-sky-700"
+                  >
+                    {{ booking.purpose }}
                   </span>
                 </div>
               </div>
@@ -150,32 +163,44 @@
           <!-- Current equipment -->
           <div v-if="currentEquipment">
             <div class="mb-3 flex items-center justify-between">
-              <h2 class="text-sm font-semibold text-gray-900">Equipment</h2>
+              <h2 class="text-sm font-semibold text-gray-900">Current Equipment</h2>
               <Link href="/archer/equipment" class="text-xs font-medium text-gray-400 hover:text-gray-700">
                 Manage →
               </Link>
             </div>
 
             <div class="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-gray-100">
-              <div class="flex items-center gap-3 mb-3">
+              <div class="mb-3 flex items-center gap-3">
                 <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-gray-100">
                   <svg class="h-5 w-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.121 14.121L19 19m-7-7l7-7m-7 7l-2.879 2.879M12 12L9.121 9.121m0 5.758a3 3 0 10-4.243-4.243 3 3 0 004.243 4.243z"/>
                   </svg>
                 </div>
                 <div>
-                  <p class="text-sm font-semibold capitalize text-gray-900">{{ currentEquipment.bow_type }}</p>
-                  <p class="text-xs text-gray-400">Current setup</p>
+                  <p class="text-sm font-semibold text-gray-900">
+                    {{ currentEquipment.bow_brand }} {{ currentEquipment.bow_model }}
+                  </p>
+                  <p class="text-xs capitalize text-gray-400">{{ currentEquipment.bow_type }}</p>
                 </div>
               </div>
               <dl class="space-y-1.5">
-                <div v-if="currentEquipment.brace_height" class="flex justify-between">
-                  <dt class="text-xs text-gray-400">Brace height</dt>
-                  <dd class="text-xs font-medium text-gray-700">{{ currentEquipment.brace_height }}</dd>
+                <div v-if="currentEquipment.draw_weight_lbs" class="flex justify-between">
+                  <dt class="text-xs text-gray-400">Draw weight</dt>
+                  <dd class="text-xs font-medium text-gray-700">{{ currentEquipment.draw_weight_lbs }} lbs</dd>
                 </div>
-                <div v-if="currentEquipment.tiller" class="flex justify-between">
-                  <dt class="text-xs text-gray-400">Tiller</dt>
-                  <dd class="text-xs font-medium text-gray-700">{{ currentEquipment.tiller }}</dd>
+                <div v-if="currentEquipment.draw_length_inches" class="flex justify-between">
+                  <dt class="text-xs text-gray-400">Draw length</dt>
+                  <dd class="text-xs font-medium text-gray-700">{{ currentEquipment.draw_length_inches }}"</dd>
+                </div>
+                <div v-if="currentEquipment.arrow_brand || currentEquipment.arrow_model" class="flex justify-between">
+                  <dt class="text-xs text-gray-400">Arrows</dt>
+                  <dd class="max-w-[120px] truncate text-xs font-medium text-gray-700">
+                    {{ currentEquipment.arrow_brand }} {{ currentEquipment.arrow_model }}
+                  </dd>
+                </div>
+                <div v-if="currentEquipment.arrow_spine" class="flex justify-between">
+                  <dt class="text-xs text-gray-400">Spine</dt>
+                  <dd class="text-xs font-medium text-gray-700">{{ currentEquipment.arrow_spine }}</dd>
                 </div>
               </dl>
             </div>
@@ -207,10 +232,10 @@
 
 <script setup>
 import { computed, markRaw } from 'vue'
-import { Link, usePage } from '@inertiajs/vue3'
+import { Link } from '@inertiajs/vue3'
 import AppLayout from '@/Components/Layouts/AppLayout.vue'
 
-// ── Props (from Inertia controller) ──────────────────────────────────────────
+// ── Props ─────────────────────────────────────────────────────────────────────
 
 const props = defineProps({
   archer:           { type: Object, required: true },
@@ -220,9 +245,9 @@ const props = defineProps({
   currentEquipment: { type: Object, default: null },
 })
 
-// ── Computed stats cards ──────────────────────────────────────────────────────
+// ── Stat cards ────────────────────────────────────────────────────────────────
 
-const stats = computed(() => [
+const statCards = computed(() => [
   {
     label: 'Sessions',
     value: props.stats.total_sessions,
@@ -240,39 +265,50 @@ const stats = computed(() => [
     sub:   'personal best',
   },
   {
-    label: 'X Count',
+    label: 'Total X',
     value: props.stats.total_x_count,
     color: 'text-yellow-500',
     sub:   'all time',
   },
 ])
 
-// ── Quick links ───────────────────────────────────────────────────────────────
+// ── Icons ─────────────────────────────────────────────────────────────────────
 
 const IconTarget = markRaw({ template: `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke-width="2"/><circle cx="12" cy="12" r="6" stroke-width="2"/><circle cx="12" cy="12" r="2" fill="currentColor" stroke-width="0"/></svg>` })
 const IconChart  = markRaw({ template: `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>` })
-const IconTrophy = markRaw({ template: `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>` })
+const IconTrophy = markRaw({ template: `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"/></svg>` })
 const IconWrench = markRaw({ template: `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>` })
 
+// ── Quick links ───────────────────────────────────────────────────────────────
+
 const quickLinks = [
-  { label: 'Live Scoring', href: '/live',             icon: IconTarget },
-  { label: 'Reports',      href: '/reports/archer',   icon: IconChart },
-  { label: 'Competitions', href: '/competitions',     icon: IconTrophy },
-  { label: 'Equipment',    href: '/archer/equipment', icon: IconWrench },
+  { label: 'Sessions',     href: '/archer/sessions',     icon: IconTarget },
+  { label: 'Reports',      href: '/reports/archer',      icon: IconChart },
+  { label: 'Competitions', href: '/archer/competitions', icon: IconTrophy },
+  { label: 'Equipment',    href: '/archer/equipment',    icon: IconWrench },
 ]
 
 // ── Formatters ────────────────────────────────────────────────────────────────
 
 function formatDate(iso) {
+  if (!iso) return '—'
   return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
 function formatDateTime(iso) {
-  return new Date(iso).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+  if (!iso) return '—'
+  return new Date(iso).toLocaleString('en-GB', {
+    weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
+  })
 }
 
 function formatDuration(start, end) {
   const mins = Math.round((new Date(end) - new Date(start)) / 60000)
-  return mins >= 60 ? `${Math.floor(mins / 60)}h ${mins % 60}m` : `${mins} min`
+  if (mins >= 60) {
+    const h = Math.floor(mins / 60)
+    const m = mins % 60
+    return m > 0 ? `${h}h ${m}m` : `${h}h`
+  }
+  return `${mins} min`
 }
 </script>

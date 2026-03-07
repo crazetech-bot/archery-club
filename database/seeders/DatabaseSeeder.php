@@ -2,7 +2,6 @@
 
 namespace Database\Seeders;
 
-use App\Models\Central\Subscription;
 use App\Models\Central\Tenant;
 use App\Models\Central\User;
 use Illuminate\Database\Seeder;
@@ -15,7 +14,6 @@ use Illuminate\Support\Facades\Hash;
  *   1. Creating the super admin user on the central DB
  *   2. Provisioning a demo tenant (creates the tenant DB and runs migrations)
  *   3. Linking central users to the demo tenant via tenant_user pivot
- *   4. Creating a demo subscription record
  *
  * Run with:
  *   php artisan db:seed
@@ -114,22 +112,6 @@ class DatabaseSeeder extends Seeder
 
             $this->command->info("  Linked {$email} as {$role}");
         }
-
-        // ── 7. Demo subscription ──────────────────────────────────────────────
-        Subscription::firstOrCreate(
-            ['tenant_id' => $tenant->id],
-            [
-                'tenant_id'                 => $tenant->id,
-                'provider'                  => 'stripe',
-                'provider_customer_id'      => 'cus_demo000000000',
-                'provider_subscription_id'  => 'sub_demo000000000',
-                'plan'                      => 'pro_monthly',
-                'status'                    => 'active',
-                'renews_at'                 => now()->addMonth(),
-            ]
-        );
-
-        $this->command->info('  Demo subscription created.');
 
         // ── Summary ───────────────────────────────────────────────────────────
         $this->command->info('');
