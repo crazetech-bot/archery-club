@@ -22,7 +22,16 @@ class DashboardController extends Controller
     public function archer(Request $request): Response
     {
         $user   = Auth::user();
-        $archer = Archer::with(['currentEquipment', 'coach'])->where('user_id', $user->id)->firstOrFail();
+        $archer = Archer::with(['currentEquipment', 'coach'])->where('user_id', $user->id)->first();
+
+        // If no archer profile, redirect to the appropriate dashboard
+        if (! $archer) {
+            $user->setConnection('tenant');
+            if ($user->hasRole('club_admin')) return redirect('/admin/dashboard');
+            if ($user->hasRole('coach'))      return redirect('/coach/dashboard');
+            $user->setConnection('mysql');
+            return redirect('/');
+        }
 
         // ── Recent sessions (last 8) ──────────────────────────────────────────
         $recentSessions = TrainingSession::with(['liveSession.ends'])
