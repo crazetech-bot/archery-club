@@ -275,10 +275,9 @@ const notificationCount = computed(() => page.props.notificationCount ?? 0)
 const navItems = [
   { label: 'Dashboard',         href: '/archer/dashboard',    icon: IconHome },
   { label: 'Training Sessions', href: '/archer/sessions',     icon: IconCalendar },
-  { label: 'Live Scoring',      href: '/live',                icon: IconTarget },
+  { label: 'Live Scoring',      href: '/archer/sessions',     icon: IconTarget },
   { label: 'Equipment',         href: '/archer/equipment',    icon: IconWrench },
-  { label: 'Competitions',      href: '/competitions',        icon: IconTrophy },
-  { label: 'Reports',           href: '/reports/archer',      icon: IconChart },
+  { label: 'Competitions',      href: '/archer/competitions', icon: IconTrophy },
 ]
 
 function isActive(href) {
