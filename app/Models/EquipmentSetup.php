@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class EquipmentSetup extends Model
 {
@@ -42,5 +43,13 @@ class EquipmentSetup extends Model
     public function archer(): BelongsTo
     {
         return $this->belongsTo(Archer::class);
+    }
+
+    /**
+     * Maintenance log entries for this equipment setup.
+     */
+    public function maintenanceLogs(): HasMany
+    {
+        return $this->hasMany(EquipmentMaintenance::class)->orderByDesc('performed_at');
     }
 }

@@ -10,12 +10,14 @@
  * Role middleware applied per-group via Spatie: ->middleware('role:club_admin')
  */
 
+use App\Http\Controllers\Admin\AttendanceController;
 use App\Http\Controllers\Admin\CompetitionController as AdminCompetitionController;
 use App\Http\Controllers\Admin\LaneBookingController;
 use App\Http\Controllers\Admin\LaneController as AdminLaneController;
 use App\Http\Controllers\Admin\MemberController;
 use App\Http\Controllers\Archer\CompetitionController as ArcherCompetitionController;
 use App\Http\Controllers\Archer\EquipmentController;
+use App\Http\Controllers\Archer\EquipmentMaintenanceController;
 use App\Http\Controllers\Archer\ProfileController;
 use App\Http\Controllers\Archer\TrainingSessionController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
@@ -23,6 +25,7 @@ use App\Http\Controllers\Coach\ArcherController as CoachArcherController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Live\CoachMonitorController;
 use App\Http\Controllers\Live\ScoringController;
+use App\Http\Controllers\Reports\LeaderboardController;
 use App\Http\Controllers\Reports\ScoreProgressionController;
 use Illuminate\Support\Facades\Route;
 
@@ -72,6 +75,11 @@ Route::middleware(['tenant', 'auth', 'subscribed'])->group(function () {
             Route::put('/equipment/{setup}',                [EquipmentController::class, 'update'])->name('equipment.update');
             Route::put('/equipment/{setup}/set-current',    [EquipmentController::class, 'setCurrent'])->name('equipment.set-current');
             Route::delete('/equipment/{setup}',             [EquipmentController::class, 'destroy'])->name('equipment.destroy');
+
+            // Equipment maintenance log
+            Route::get('/equipment/{setup}/maintenance',            [EquipmentMaintenanceController::class, 'index'])->name('equipment.maintenance.index');
+            Route::post('/equipment/{setup}/maintenance',           [EquipmentMaintenanceController::class, 'store'])->name('equipment.maintenance.store');
+            Route::delete('/equipment/{setup}/maintenance/{log}',   [EquipmentMaintenanceController::class, 'destroy'])->name('equipment.maintenance.destroy');
 
             // Competition results (read-only; admin records them)
             Route::get('/competitions', [ArcherCompetitionController::class, 'index'])->name('competitions.index');
@@ -131,6 +139,14 @@ Route::middleware(['tenant', 'auth', 'subscribed'])->group(function () {
             Route::put('/lanes/{lane}/bookings/{booking}',       [LaneBookingController::class, 'update'])->name('lanes.bookings.update');
             Route::delete('/lanes/{lane}/bookings/{booking}',    [LaneBookingController::class, 'destroy'])->name('lanes.bookings.destroy');
 
+            // Group sessions + attendance
+            Route::get('/sessions',                              [AttendanceController::class, 'index'])->name('sessions.index');
+            Route::post('/sessions',                             [AttendanceController::class, 'store'])->name('sessions.store');
+            Route::patch('/sessions/{session}',                  [AttendanceController::class, 'update'])->name('sessions.update');
+            Route::delete('/sessions/{session}',                 [AttendanceController::class, 'destroy'])->name('sessions.destroy');
+            Route::get('/sessions/{session}/attendance',         [AttendanceController::class, 'show'])->name('sessions.attendance.show');
+            Route::post('/sessions/{session}/attendance',        [AttendanceController::class, 'mark'])->name('sessions.attendance.mark');
+
             // Competitions
             Route::get('/competitions',                          [AdminCompetitionController::class, 'index'])->name('competitions.index');
             Route::post('/competitions',                         [AdminCompetitionController::class, 'store'])->name('competitions.store');
@@ -178,5 +194,8 @@ Route::middleware(['tenant', 'auth', 'subscribed'])->group(function () {
                     Route::get('/score-progression',        [ScoreProgressionController::class, 'show'])->name('score-progression');
                     Route::get('/score-progression/data',   [ScoreProgressionController::class, 'data'])->name('score-progression.data');
                 });
+
+            Route::get('/leaderboard',      [LeaderboardController::class, 'index'])->name('leaderboard');
+            Route::get('/leaderboard/data', [LeaderboardController::class, 'data'])->name('leaderboard.data');
         });
 });

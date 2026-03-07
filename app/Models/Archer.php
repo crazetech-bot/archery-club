@@ -97,6 +97,14 @@ class Archer extends Model
         return $this->hasMany(CoachNote::class)->latest();
     }
 
+    /**
+     * Group session attendance records for this archer.
+     */
+    public function attendances(): HasMany
+    {
+        return $this->hasMany(Attendance::class);
+    }
+
     // -------------------------------------------------------------------------
     // Helpers
     // -------------------------------------------------------------------------
