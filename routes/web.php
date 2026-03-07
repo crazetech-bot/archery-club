@@ -19,13 +19,20 @@ use Inertia\Inertia;
 
 Route::get('/', fn () => Inertia::render('Welcome'))->name('home');
 
-// TEMPORARY — OPcache flush (remove after confirming app is working)
+// TEMPORARY — remove after running once
 Route::get('/flush-opcache', function () {
     if (function_exists('opcache_reset')) {
         opcache_reset();
         return response()->json(['status' => 'OPcache cleared']);
     }
     return response()->json(['status' => 'OPcache not available']);
+});
+
+// TEMPORARY — clears encrypted db_password from all tenants so middleware
+// falls back to env('DB_PASSWORD'). Run once then remove.
+Route::get('/fix-tenant-passwords', function () {
+    $count = \App\Models\Tenant::query()->update(['db_password' => null]);
+    return response()->json(['updated' => $count, 'status' => 'done']);
 });
 
 // TEMPORARY — remove after wildcard proxy is set up

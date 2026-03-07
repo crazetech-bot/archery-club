@@ -23,9 +23,7 @@ class Tenant extends Model
 
     protected function casts(): array
     {
-        return [
-            'db_password' => 'encrypted',
-        ];
+        return [];
     }
 
     public function users()
