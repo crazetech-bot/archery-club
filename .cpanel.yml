@@ -2,8 +2,7 @@
 deployment:
   tasks:
     - rsync -av --exclude='.env' --exclude='vendor' --exclude='node_modules' --exclude='storage' --exclude='public/storage' /home/fmsport/archery-git/ /home/fmsport/archery/
-    - ln -sfn /home/fmsport/archery/public/build /home/fmsport/public_html/build
-    - ln -sfn /home/fmsport/archery/public/storage /home/fmsport/public_html/storage
+    - rsync -av --delete /home/fmsport/archery/public/build/ /home/fmsport/public_html/build/
     - php /home/fmsport/archery/artisan config:clear
     - php /home/fmsport/archery/artisan route:clear
     - php /home/fmsport/archery/artisan cache:clear
