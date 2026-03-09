@@ -160,7 +160,6 @@ import ArcherSessionCard from '@/Components/Live/ArcherSessionCard.vue'
 const props = defineProps({
   coach:       { type: Object, required: true },
   archerCards: { type: Array,  default: () => [] },
-  tenantId:    { type: [String, Number], required: true },
 })
 
 // ── State ─────────────────────────────────────────────────────────────────────
@@ -205,7 +204,7 @@ function subscribeEcho() {
   }
 
   echoChannel = window.Echo
-    .private(`tenant.${props.tenantId}.live`)
+    .private(`live.scoring`)
 
     // Archer started a new session — add card or update existing
     .listen('.live.session.started', ({ session }) => {
@@ -280,7 +279,7 @@ function showToast(message) {
 onMounted(() => subscribeEcho())
 
 onUnmounted(() => {
-  if (echoChannel) window.Echo?.leave(`tenant.${props.tenantId}.live`)
+  if (echoChannel) window.Echo?.leave(`live.scoring`)
   if (pollInterval) clearInterval(pollInterval)
   clearTimeout(toastTimeout)
 })
