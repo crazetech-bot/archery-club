@@ -3,137 +3,129 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\Archer;
-use App\Models\Coach;
+use App\Http\Requests\Admin\StoreUserRequest;
+use App\Http\Requests\Admin\UpdateUserRequest;
+use App\Models\Core\Club;
+use App\Models\Core\ClubUser;
+use App\Models\Core\User;
+use App\Services\Module1\UserService;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class MemberController extends Controller
 {
+    public function __construct(
+        private readonly UserService $userService,
+    ) {}
+
     /**
+     * List all club members with optional search and role filter.
+     *
      * GET /admin/members
      */
     public function index(Request $request): Response
     {
-        $search     = $request->string('search');
-        $filterRole = $request->string('role');
+        $search = $request->string('search');
+        $role   = $request->string('role');
 
-        // Build a unified member list from archers + coaches
-        $archers = Archer::with('coach')
-            ->when($search, fn ($q) => $q->whereHas(
-                'user', fn ($u) => $u->where('name', 'like', "%{$search}%")
-            ))
+        $club = Club::firstOrFail();
+
+        $members = $club->users()
+            ->when($search, fn ($q) => $q->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('email', 'like', "%{$search}%");
+            }))
+            ->when($role, fn ($q) => $q->wherePivot('primary_role', $role))
+            ->orderBy('name')
             ->get()
-            ->map(fn (Archer $a) => [
-                'id'         => $a->id,
-                'user_id'    => $a->user_id,
-                'name'       => $a->user?->name ?? "Archer #{$a->id}",
-                'email'      => $a->user?->email,
-                'role'       => 'archer',
-                'category'   => $a->category,
-                'coach_name' => $a->coach?->user?->name,
-                'joined_at'  => $a->created_at,
+            ->map(fn (User $user) => [
+                'id'           => $user->id,
+                'name'         => $user->name,
+                'email'        => $user->email,
+                'phone'        => $user->phone,
+                'avatar_path'  => $user->avatar_path,
+                'is_active'    => $user->is_active,
+                'primary_role' => $user->pivot->primary_role,
+                'joined_at'    => $user->pivot->joined_at,
             ]);
-
-        $coaches = Coach::all()->map(fn (Coach $c) => [
-            'id'         => $c->id,
-            'user_id'    => $c->user_id,
-            'name'       => $c->user?->name ?? "Coach #{$c->id}",
-            'email'      => $c->user?->email,
-            'role'       => 'coach',
-            'category'   => null,
-            'coach_name' => null,
-            'joined_at'  => $c->created_at,
-        ]);
-
-        $members = $archers->concat($coaches)->sortBy('name')->values();
-
-        if ($filterRole) {
-            $members = $members->filter(fn ($m) => $m['role'] === $filterRole)->values();
-        }
 
         return Inertia::render('Admin/Members', [
             'members' => $members,
-            'coaches' => Coach::with('user')->get()->map(fn ($c) => [
-                'id'   => $c->id,
-                'name' => $c->user?->name ?? "Coach #{$c->id}",
-            ]),
             'filters' => [
                 'search' => (string) $search,
-                'role'   => (string) $filterRole,
+                'role'   => (string) $role,
             ],
         ]);
     }
 
     /**
-     * POST /admin/members/archers
+     * Show a single member profile.
+     *
+     * GET /admin/members/{user}
      */
-    public function storeArcher(Request $request)
+    public function show(User $user): Response
     {
-        $data = $request->validate([
-            'name'          => ['required', 'string', 'max:255'],
-            'email'         => ['required', 'email', Rule::unique('mysql.users', 'email')],
-            'category'      => ['required', 'string', 'in:U12,U15,U18,U21,Senior,Master'],
-            'coach_id'      => ['nullable', 'integer', 'exists:coaches,id'],
-            'date_of_birth' => ['nullable', 'date'],
-            'dominant_hand' => ['nullable', 'string', 'in:right,left'],
+        $membership = ClubUser::where('user_id', $user->id)->firstOrFail();
+
+        return Inertia::render('Admin/MemberDetail', [
+            'member' => [
+                'id'           => $user->id,
+                'name'         => $user->name,
+                'email'        => $user->email,
+                'phone'        => $user->phone,
+                'avatar_path'  => $user->avatar_path,
+                'is_active'    => $user->is_active,
+                'primary_role' => $membership->primary_role,
+                'joined_at'    => $membership->joined_at,
+                'roles'        => $user->getRoleNames(),
+            ],
         ]);
-
-        // Create central user
-        $user = \App\Models\Central\User::on('mysql')->create([
-            'name'     => $data['name'],
-            'email'    => $data['email'],
-            'password' => \Illuminate\Support\Facades\Hash::make(\Illuminate\Support\Str::random(16)),
-        ]);
-
-        // Assign tenant role
-        $tenant = tenant();
-        \DB::connection('mysql')->table('tenant_user')->insert([
-            'tenant_id' => $tenant->id,
-            'user_id'   => $user->id,
-            'role'      => 'archer',
-        ]);
-
-        // Create tenant archer record
-        Archer::create([
-            'user_id'        => $user->id,
-            'category'       => $data['category'],
-            'coach_id'       => $data['coach_id'],
-            'date_of_birth'  => $data['date_of_birth'],
-            'dominant_hand'  => $data['dominant_hand'],
-        ]);
-
-        // TODO: dispatch welcome email
-
-        return redirect()->route('admin.members.index')
-            ->with('success', "{$data['name']} added as archer.");
     }
 
     /**
-     * PUT /admin/members/archers/{archer}
+     * Create a new user and attach them to the club.
+     *
+     * POST /admin/members
      */
-    public function updateArcher(Request $request, Archer $archer)
+    public function store(StoreUserRequest $request): RedirectResponse
     {
-        $data = $request->validate([
-            'category'  => ['required', 'string', 'in:U12,U15,U18,U21,Senior,Master'],
-            'coach_id'  => ['nullable', 'integer', 'exists:coaches,id'],
-        ]);
+        $club = Club::firstOrFail();
 
-        $archer->update($data);
+        $user = $this->userService->create($request->validated(), $club);
 
-        return redirect()->back()->with('success', 'Archer updated.');
+        // TODO: dispatch welcome email with password-set link (future module)
+
+        return redirect()->route('admin.members.index')
+            ->with('success', "{$user->name} added as {$request->validated()['primary_role']}.");
     }
 
     /**
-     * DELETE /admin/members/archers/{archer}
+     * Update a member's details and role.
+     *
+     * PUT /admin/members/{user}
      */
-    public function destroyArcher(Archer $archer)
+    public function update(UpdateUserRequest $request, User $user): RedirectResponse
     {
-        $archer->delete();
+        $this->userService->update($user, $request->validated());
 
         return redirect()->route('admin.members.index')
-            ->with('success', 'Archer removed.');
+            ->with('success', "{$user->name} updated.");
+    }
+
+    /**
+     * Remove a member from the club and deactivate their account.
+     *
+     * DELETE /admin/members/{user}
+     */
+    public function destroy(User $user): RedirectResponse
+    {
+        $name = $user->name;
+
+        $this->userService->remove($user);
+
+        return redirect()->route('admin.members.index')
+            ->with('success', "{$name} removed from the club.");
     }
 }

@@ -217,6 +217,14 @@ const ChartIcon = {
   ]),
 }
 
+const ScorecardIcon = {
+  render: () => h('svg', { fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' }, [
+    h('circle', { cx: '12', cy: '12', r: '9', 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '1.5' }),
+    h('circle', { cx: '12', cy: '12', r: '5', 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '1.5' }),
+    h('circle', { cx: '12', cy: '12', r: '1.5', fill: 'currentColor' }),
+  ]),
+}
+
 // ── Role-aware navigation ─────────────────────────────────────────────────────
 const navigation = computed(() => {
   const r = role.value
@@ -271,9 +279,10 @@ const navigation = computed(() => {
     {
       label: 'Training',
       items: [
-        { name: 'Sessions',     href: '/archer/sessions',     icon: SessionIcon },
-        { name: 'Equipment',    href: '/archer/equipment',    icon: EquipmentIcon },
-        { name: 'Competitions', href: '/archer/competitions', icon: TrophyIcon },
+        { name: 'Sessions',     href: '/archer/sessions',      icon: SessionIcon },
+        { name: 'Scorecards',   href: '/scoring/scorecards',   icon: ScorecardIcon },
+        { name: 'Equipment',    href: '/archer/equipment',     icon: EquipmentIcon },
+        { name: 'Competitions', href: '/archer/competitions',  icon: TrophyIcon },
       ],
     },
     {

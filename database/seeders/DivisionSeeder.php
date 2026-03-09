@@ -1,0 +1,23 @@
+<?php
+
+namespace Database\Seeders;
+
+use Illuminate\Database\Seeder;
+use App\Models\Scoring\Division;
+
+class DivisionSeeder extends Seeder
+{
+    public function run(): void
+    {
+        $divisions = [
+            'Barebow',
+            'Compound',
+            'Recurve',
+            'Traditional',
+        ];
+
+        foreach ($divisions as $name) {
+            Division::firstOrCreate(['name' => $name]);
+        }
+    }
+}

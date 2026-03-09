@@ -3,10 +3,10 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Auth\LoginRequest;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -23,37 +23,29 @@ class AuthenticatedSessionController extends Controller
     }
 
     /**
-     * Handle an incoming authentication request.
+     * Authenticate the incoming request and redirect by role.
      */
-    public function store(Request $request): RedirectResponse
+    public function store(LoginRequest $request): RedirectResponse
     {
-        $credentials = $request->validate([
-            'email'    => ['required', 'string', 'email'],
-            'password' => ['required', 'string'],
-        ]);
-
-        if (! Auth::attempt($credentials, $request->boolean('remember'))) {
-            throw ValidationException::withMessages([
-                'email' => __('auth.failed'),
-            ]);
-        }
+        $request->authenticate();
 
         $request->session()->regenerate();
 
-        // Redirect to the tenant app or admin dashboard based on role
         $user = Auth::user();
 
-        if ($user->is_super_admin) {
-            return redirect()->intended('/admin');
+        if ($user->hasRole('club_admin')) {
+            return redirect()->intended(route('admin.members.index'));
         }
 
-        // For tenant users, redirect to the tenant subdomain
-        // In development, redirect to tenant dashboard directly
-        return redirect()->intended('/');
+        if ($user->hasRole('coach')) {
+            return redirect()->intended(route('dashboard'));
+        }
+
+        return redirect()->intended(route('dashboard'));
     }
 
     /**
-     * Destroy an authenticated session.
+     * Destroy the authenticated session.
      */
     public function destroy(Request $request): RedirectResponse
     {
@@ -62,6 +54,6 @@ class AuthenticatedSessionController extends Controller
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
-        return redirect('/');
+        return redirect()->route('login');
     }
 }
